@@ -4,12 +4,13 @@
 <img src="https://readme-typing-svg.demolab.com?font=Share+Tech+Mono&weight=900&size=19&duration=1300&pause=300&color=FF0000&background=0D0D0D&center=true&vCenter=true&width=960&lines=MRX'S+SLAVE+v14.0+%E2%80%94+HARDEST+LEVEL+%F0%9F%94%A5;14-PHASE+ANIMATED+BOOT+%E2%80%94+LINUX+%7C+macOS+%7C+WINDOWS;DEVIL+MODE+%E2%80%94+AUTONOMOUS+KILL+INTELLIGENCE;ZERO+MERCY.+ZERO+HESITATION.+FULL+AUTONOMY.;ONE+COMMAND+%E2%80%94+ALWAYS+LATEST+%E2%80%94+ALL+SYSTEMS" alt="MRX'S SLAVE"/>
 
 ```
- ██████╗   ██████╗  ██╗  ██╗ ██╗  ██╗
- ██╔══██╗ ██╔═══██╗ ╚██╗██╔╝ ╚██╗██╔╝
- ██████╔╝ ██║   ██║  ╚███╔╝   ╚███╔╝ 
- ██╔══██╗ ██║   ██║  ██╔██╗   ██╔██╗ 
- ██║  ██║ ╚██████╔╝ ██╔╝ ██╗ ██╔╝ ██╗
- ╚═╝  ╚═╝  ╚═════╝  ╚═╝  ╚═╝ ╚═╝  ╚═╝
+ █████╗  ██████╗ ███████╗███╗   ██╗████████╗   ██╗  ██╗██╗ ██████╗ 
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝   ██║ ██╔╝██║██╔═══██╗
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║█████╗█████╔╝ ██║██║   ██║
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║╚════╝██╔═██╗ ██║██║   ██║
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║      ██║  ██╗██║╚██████╔╝
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝      ╚═╝  ╚═╝╚═╝ ╚═════╝ 
+                                                                   
 ```
 
 [![Version](https://img.shields.io/badge/version-v14.0-red?style=for-the-badge)](.)
