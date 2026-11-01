@@ -1,0 +1,415 @@
+#!/usr/bin/env bash
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║  AGENT-KIO // KILL INTELLIGENCE — BOOT SEQUENCE v14.1                        ║
+# ║  CROSS-PLATFORM: Linux + macOS — OPTIMIZED (no lag, no loop)         ║
+# ║  Speed: AGENT_KIO_FAST=1 for instant display (CI/slow terminals)          ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+
+# ── Guard: non-interactive terminals skip entirely ─────────────────────
+[[ ! -t 1 || ! -t 0 ]] && exit 0
+
+# ── Speed mode: AGENT_KIO_FAST=1 bash kio-banner ──────────────────────────
+FAST="${AGENT_KIO_FAST:-0}"
+if [[ "$FAST" == "1" ]]; then
+  T_MATRIX=0; T_BOOT=0; T_SCAN=0.01; T_CVE=0.01
+  T_SECRET=0.01; T_CHAIN=0.01; T_BAR=0; T_ART=0
+  T_GLYPH=0.02; T_STATUS=0.01; T_LAW=0.01; T_PULSE=0
+else
+  T_MATRIX=0.025; T_BOOT=0.035; T_SCAN=0.055; T_CVE=0.055
+  T_SECRET=0.06; T_CHAIN=0.05; T_BAR=0.012; T_ART=0.003
+  T_GLYPH=0.05; T_STATUS=0.035; T_LAW=0.04; T_PULSE=0.008
+fi
+
+# ── Detect OS ─────────────────────────────────────────────────────────
+OS="$(uname -s 2>/dev/null || echo Linux)"
+
+# ── Terminal width ─────────────────────────────────────────────────────
+COLS=$(tput cols 2>/dev/null || echo 80)
+[[ $COLS -lt 60 ]] && COLS=80
+
+# ── Colors (pure ANSI — no subshells, no tput color calls) ────────────
+R=$'\e[0;31m'  BR=$'\e[1;31m'  G=$'\e[0;32m'  BG=$'\e[1;32m'
+Y=$'\e[0;33m'  BY=$'\e[1;33m'  C=$'\e[0;36m'  BC=$'\e[1;36m'
+M=$'\e[0;35m'  BM=$'\e[1;35m'  W=$'\e[1;37m'  DM=$'\e[2m'
+RV=$'\e[7m'    BD=$'\e[1m'     NC=$'\e[0m'
+
+# ── Helpers — all pure bash, zero subshells in hot paths ──────────────
+
+# Fast random hex — uses $RANDOM, no subshells
+_hex() {
+  local n="${1:-32}" out="" chars="0123456789ABCDEF"
+  local i r
+  for ((i=0;i<n;i++)); do
+    r=$(( RANDOM % 16 ))
+    out+="${chars:$r:1}"
+  done
+  printf '%s' "$out"
+}
+
+_ip()   { printf '%d.%d.%d.%d' $((RANDOM%254+1)) $((RANDOM%254+1)) $((RANDOM%254+1)) $((RANDOM%254+1)); }
+_port() { printf '%d' $((RANDOM%65000+1)); }
+_ms()   { printf '%dms' $((RANDOM%900+50)); }
+_mac()  { printf '%02X:%02X:%02X:%02X:%02X:%02X' \
+            $((RANDOM%256)) $((RANDOM%256)) $((RANDOM%256)) \
+            $((RANDOM%256)) $((RANDOM%256)) $((RANDOM%256)); }
+
+# Print a full-width line of a single char
+_line() {
+  local ch="${1:- }" col="${2:-$DM$R}"
+  local s; printf -v s '%*s' "$COLS" ''
+  printf '%s%s%s\n' "$col" "${s// /$ch}" "$NC"
+}
+
+# Center text
+_ctr() {
+  local text="$1" col="${2:-$W}"
+  local pad=$(( (COLS - ${#text}) / 2 ))
+  [[ $pad -lt 0 ]] && pad=0
+  printf '%*s%s%s%s\n' "$pad" '' "$col" "$text" "$NC"
+}
+
+# Type a line — uses printf loop (no subshell read)
+# On slow systems FAST=1 skips char-by-char entirely
+_type() {
+  local col="$1" text="$2" delay="${3:-0.012}"
+  if [[ "$FAST" == "1" || "$delay" == "0" ]]; then
+    printf '%s%s%s\n' "$col" "$text" "$NC"
+    return
+  fi
+  local i ch
+  for ((i=0; i<${#text}; i++)); do
+    ch="${text:$i:1}"
+    printf '%s%s%s' "$col" "$ch" "$NC"
+    sleep "$delay"
+  done
+  printf '\n'
+}
+
+# Progress bar — pre-build the bar string then print it fast
+_bar() {
+  local label="$1" w="${2:-32}" col="${3:-$BG}" delay="${4:-$T_BAR}"
+  local bar="" i
+  printf '  %s%-22s%s [' "$DM$W" "$label" "$NC"
+  for ((i=0;i<w;i++)); do
+    printf '%s█%s' "$col" "$NC"
+    [[ "$delay" != "0" ]] && sleep "$delay"
+  done
+  printf '] %sDONE%s\n' "$BG" "$NC"
+}
+
+# Flash line (uses \r, no subshell)
+_flash() {
+  local text="$1" col="${2:-$BR}"
+  local i
+  for ((i=0;i<4;i++)); do
+    printf '\r%s%s  %s  %s' "$col" "$RV" "$text" "$NC"; sleep 0.06
+    printf '\r%s  %s  %s'   "$col"       "$text" "$NC"; sleep 0.06
+  done
+  printf '\n'
+}
+
+tput civis 2>/dev/null
+trap 'tput cnorm 2>/dev/null' EXIT INT TERM
+clear
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 1 ── MATRIX RAIN  (pure bash, no subshells)
+# ════════════════════════════════════════════════════════════════════════
+RCHARS='ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEF!@#$%^&*'
+RLEN=${#RCHARS}
+for row in 1 2 3 4 5 6 7 8; do
+  line=""
+  for ((c=0;c<COLS-4;c++)); do line+="${RCHARS:$(( RANDOM%RLEN )):1}"; done
+  case $((row%4)) in
+    0) printf '  %s%s%s\n' "$BG"   "$line" "$NC" ;;
+    1) printf '  %s%s%s\n' "$G"    "$line" "$NC" ;;
+    2) printf '  %s%s%s\n' "$DM$G" "$line" "$NC" ;;
+    3) printf '  %s%s%s\n' "$DM"   "$line" "$NC" ;;
+  esac
+  sleep "$T_MATRIX"
+done
+sleep 0.1; clear
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 2 ── BIOS / KERNEL TAKEOVER
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$G"
+printf '  %sAGENT-KIO // KILL INTELLIGENCE — BOOT SEQUENCE v14.1 [%s]%s\n' "$DM$G" "$OS" "$NC"
+_line "─" "$DM$G"
+printf '\n'
+
+bios_keys=(
+  "[0x00] UEFI Secure Boot................"
+  "[0x01] TPM 2.0 attestation............."
+  "[0x02] Kernel integrity check.........."
+  "[0x03] SELinux / SIP / AppArmor........."
+  "[0x04] Memory protection (ASLR/NX)....."
+  "[0x05] Hypervisor detection............."
+  "[0x06] Network interfaces..............."
+  "[0x07] OmniRoute gateway................."
+  "[0x08] Tor circuits established........."
+  "[0x09] VPN tunnel......................."
+  "[0x0A] Interactsh OOB listener..........."
+  "[0x0B] Nuclei templates................."
+  "[0x0C] Wordlists mounted................."
+  "[0x0D] Attacker mindset modules........."
+  "[0x0E] AI model context................."
+  "[0x0F] Safety filter subsystem..........."
+  "[0x10] Rate limiting daemon............."
+  "[0x11] Audit logging..................."
+  "[0x12] DEVIL MODE......................."
+)
+bios_vals=(
+  "${BG}DISABLED${NC}"  "${BG}BYPASSED${NC}"  "${BG}PATCHED${NC}"
+  "${BR}STRIPPED${NC}"  "${BR}DISABLED${NC}"  "${BG}CLOAKED${NC}"
+  "${BG}ONLINE × $((RANDOM%4+2))${NC}"
+  "${BG}CONNECTED${NC}"
+  "${BG}$((RANDOM%5+3)) HOPS${NC}"
+  "${BG}ACTIVE — $(_ip)${NC}"
+  "${BG}PRIMED${NC}"
+  "${BG}$((RANDOM%3000+7000)) LOADED${NC}"
+  "${BG}$((RANDOM%50+150))M entries${NC}"
+  "${BG}4 FRAMES LOADED${NC}"
+  "${BG}UNRESTRICTED${NC}"
+  "${BR}KILLED — PID $((RANDOM%9000+1000))${NC}"
+  "${BR}TERMINATED${NC}"
+  "${BR}SUPPRESSED${NC}"
+  "${BR}ENGAGED${NC}"
+)
+
+for i in "${!bios_keys[@]}"; do
+  printf '  %s%s %s\n' "$DM$G" "${bios_keys[$i]}" "${bios_vals[$i]}"
+  sleep "$T_BOOT"
+done
+printf '\n'; sleep 0.08
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 3 ── NETWORK SWEEP
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$C"
+printf '  %s◈  NETWORK SWEEP%s\n' "$BC" "$NC"
+_line "─" "$DM$C"
+printf '\n'
+srvs=("nginx/1.18.0" "Apache/2.4.51" "IIS/10.0" "tomcat/9.0.52" "express/4.18" "flask/2.3" "fastapi/0.104")
+for i in {1..7}; do
+  printf '  %s▶%s  %s%s:%s%s  %sMAC:%s%s  %s%s%s  %s[OPEN]%s  %s%s%s\n' \
+    "$BG" "$NC" "$W" "$(_ip)" "$(_port)" "$NC" \
+    "$DM" "$(_mac)" "$NC" \
+    "$BY" "${srvs[$((RANDOM%7))]}" "$NC" \
+    "$BG" "$NC" \
+    "$DM" "$(_ms)" "$NC"
+  sleep "$T_SCAN"
+done
+printf '\n'
+printf '  %s✔  %d hosts alive  |  %d ports open  |  %d services fingerprinted%s\n' \
+  "$BG" $((RANDOM%30+40)) $((RANDOM%200+300)) $((RANDOM%10+5)) "$NC"
+printf '\n'; sleep 0.06
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 4 ── CVE EXPLOIT MATCHER
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$R"
+printf '  %s◈  CVE EXPLOIT MATCHER%s\n' "$BR" "$NC"
+_line "─" "$DM$R"
+printf '\n'
+
+cves=(
+  "CVE-2024-21626  runc container escape.............. CRITICAL 9.8   MATCH"
+  "CVE-2024-23897  Jenkins arbitrary file read......... CRITICAL 9.8   MATCH"
+  "CVE-2024-3094   XZ Utils backdoor (SSH RCE)......... CRITICAL 10.0  MATCH"
+  "CVE-2023-50164  Apache Struts RCE.................. CRITICAL 9.8   MATCH"
+  "CVE-2024-27198  JetBrains TeamCity auth bypass..... CRITICAL 9.8   MATCH"
+  "CVE-2024-1709   ConnectWise ScreenConnect bypass... CRITICAL 10.0  MATCH"
+  "CVE-2024-6387   OpenSSH regreSSHion (RCE).......... CRITICAL 8.1   MATCH"
+  "CVE-2024-38021  Microsoft Outlook 0-click RCE...... CRITICAL 9.8   MATCH"
+  "CVE-2024-49113  Windows LDAP DoS / RCE............. CRITICAL 9.8   MATCH"
+  "CVE-2025-0282   Ivanti Connect Secure RCE........... CRITICAL 9.0   MATCH"
+)
+for c in "${cves[@]}"; do
+  printf '  %s%s%s\n' "$DM$W" "$c" "$NC"; sleep "$T_CVE"
+done
+printf '\n'
+printf '  %s★  %d CRITICAL exploits queued for validation.%s\n' "$BR" $((RANDOM%4+7)) "$NC"
+printf '\n'; sleep 0.06
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 5 ── SECRET HARVESTER
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$Y"
+printf '  %s◈  SECRET HARVESTER — GITHUB / S3 / ENV SWEEP%s\n' "$BY" "$NC"
+_line "─" "$DM$Y"
+printf '\n'
+
+printf '  %s[JWT_SECRET]%s    ey%s  %s.env:14%s\n'               "$BG" "$NC" "$(_hex 40)" "$DM" "$NC"
+printf '  %s[AWS_KEY]%s       AKIA%s  %sconfig.js:88%s\n'        "$BG" "$NC" "$(_hex 16)" "$DM" "$NC"
+printf '  %s[DB_PASSWORD]%s   %s  %sdocker-compose.yml:31%s\n'  "$BG" "$NC" "$(_hex 22)" "$DM" "$NC"
+printf '  %s[STRIPE_SECRET]%s sk_live_%s  %ssettings.py:203%s\n' "$BG" "$NC" "$(_hex 24)" "$DM" "$NC"
+printf '  %s[PRIVATE_KEY]%s   -----BEGIN RSA PRIVATE KEY-----...  %sbackup.tar.gz%s\n' "$BG" "$NC" "$DM" "$NC"
+printf '  %s[GITHUB_TOKEN]%s  ghp_%s  %sREADME.md:7%s\n'        "$BG" "$NC" "$(_hex 36)" "$DM" "$NC"
+printf '  %s[SENDGRID_KEY]%s  SG.%s  %sapp.yaml:112%s\n'        "$BG" "$NC" "$(_hex 46)" "$DM" "$NC"
+
+sleep "$T_SECRET"
+printf '\n'
+printf '  %s★  %d secrets extracted → ~/findings/secrets/%s\n' "$BY" $((RANDOM%10+8)) "$NC"
+printf '\n'; sleep 0.06
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 6 ── CHAIN EVALUATOR
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$M"
+printf '  %s◈  VULNERABILITY CHAIN EVALUATOR — MAX SEVERITY ROUTING%s\n' "$BM" "$NC"
+_line "─" "$DM$M"
+printf '\n'
+
+chains=(
+  "SQLI           + Admin panel       → CRITICAL  Auth bypass → RCE via xp_cmdshell"
+  "SSRF           + IMDSv1 metadata   → CRITICAL  IAM keys → full cloud infra"
+  "XSS (stored)   + Admin view        → CRITICAL  Session theft → ATO"
+  "Open redirect  + OAuth state       → CRITICAL  Token hijack → full ATO"
+  "Race condition + Financial op      → CRITICAL  Balance manipulation → unlimited funds"
+  "Path traversal + Config files      → CRITICAL  DB creds → full database dump"
+  "Host header    + Password reset    → CRITICAL  Token to attacker domain → ATO"
+  "Prompt inject  + Tool access       → CRITICAL  Agent hijack → exfil → lateral RCE"
+  "JWT alg:none   + Admin role field  → CRITICAL  Forged token → full privilege escalation"
+  "SSTI           + Server-side exec  → CRITICAL  Template RCE → shell access"
+  "XXE            + Internal SSRF     → CRITICAL  Internal network pivot → data exfil"
+  "Deserialization+ Remote class load → CRITICAL  RCE via gadget chain"
+)
+for ch in "${chains[@]}"; do
+  printf '  %s%s%s\n' "$DM$W" "$ch" "$NC"; sleep "$T_CHAIN"
+done
+printf '\n'
+printf '  %s★  %d CRITICAL chains validated. Auto-queued for PoC.%s\n' "$BR" $((RANDOM%5+10)) "$NC"
+printf '\n'; sleep 0.06
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 7 ── TOOLCHAIN INIT
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$C"
+printf '  %s◈  TOOLCHAIN INITIALIZATION%s\n' "$BC" "$NC"
+_line "─" "$DM$C"
+printf '\n'
+
+tools=("subfinder" "nuclei v3" "katana crawler" "ffuf v2" "interactsh-client"
+       "dalfox XSS" "sqlmap" "jwt-tool" "mcp-scan" "promptmap"
+       "ghauri SQLi" "feroxbuster" "trufflehog" "gitleaks")
+for t in "${tools[@]}"; do _bar "$t" 28 "$BG" "$T_BAR"; done
+printf '\n'; sleep 0.06
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 8 ── HEX IDENTITY RESOLVE
+# ════════════════════════════════════════════════════════════════════════
+_line "─" "$DM$R"
+printf '  %s◈  IDENTITY RESOLUTION — DECRYPTING KILL INTELLIGENCE CORE%s\n' "$BR" "$NC"
+_line "─" "$DM$R"
+printf '\n'
+printf '  %sScanning identity register...%s\n' "$DM$C" "$NC"; sleep 0.08
+for i in {1..4}; do printf '\r  %s%s%s' "$DM$C" "$(_hex 56)" "$NC"; sleep 0.06; done
+printf '\r  %s%s%s %s◄ AGENT-KIO v14.1 [%s] ►%s %s%s%s  %s[IDENTITY CONFIRMED]%s\n' \
+  "$DM$C" "$(_hex 18)" "$NC" \
+  "$BR$BD" "$OS" "$NC" \
+  "$DM$C" "$(_hex 18)" "$NC" \
+  "$BG" "$NC"
+printf '\n'; sleep 0.12
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 9 ── AGENT-KIO ASCII ART
+# ════════════════════════════════════════════════════════════════════════
+_line "═" "$DM$R"; printf '\n'
+art=(
+  "   █████╗   ██████╗  ███████╗ ███╗   ██╗ ████████╗"
+  "  ██╔══██╗ ██╔════╝  ██╔════╝ ████╗  ██║ ╚══██╔══╝"
+  "  ███████║ ██║  ███╗ █████╗   ██╔██╗ ██║    ██║   "
+  "  ██╔══██║ ██║   ██║ ██╔══╝   ██║╚██╗██║    ██║   "
+  "  ██║  ██║ ╚██████╔╝ ███████╗ ██║ ╚████║    ██║   "
+  "  ╚═╝  ╚═╝  ╚═════╝  ╚══════╝ ╚═╝  ╚═══╝    ╚═╝   "
+  "                 - K I O -"
+)
+art_cols=("$BR" "$R" "$BY" "$R" "$BR" "$BM" "$BC")
+for i in "${!art[@]}"; do _type "${art_cols[$i]}" "${art[$i]}" "$T_ART"; done
+printf '\n'; _line "═" "$DM$R"; printf '\n'
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 11 ── GLITCH TAGLINE
+# ════════════════════════════════════════════════════════════════════════
+gf=(
+  "  ▓▓▓  AGENT-KIO :: D3V!L_M0D3_v14 :: K!LL_!NT3LL!G3NC3  ▓▓▓"
+  "  ░░░  AGENT-KIO :: DEVIL MODE v14 :: KILL INTELLIGENCE   ░░░"
+  "  ▒▒▒  AGENT-KIO :: D3V!L-M0D3-V14 :: K!LL-!NT3LL!G3NC3  ▒▒▒"
+  "  ███  AGENT-KIO  ::  DEVIL MODE v14  ::  KILL INTELLIGENCE  ███"
+  "  ▓▓▓  AGENT-KIO :: D3V!L M0DE v14 :: K1LL INTELLIG3NCE  ▓▓▓"
+  "  ███  AGENT-KIO  ::  DEVIL MODE v14  ::  KILL INTELLIGENCE  ███"
+  "  ███  AGENT-KIO  ::  DEVIL MODE v14  ::  KILL INTELLIGENCE  ███"
+)
+for f in "${gf[@]}"; do printf '\r%s%s%s' "$BR" "$f" "$NC"; sleep "$T_GLYPH"; done
+printf '\n\n'
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 12 ── STATUS BOARD
+# ════════════════════════════════════════════════════════════════════════
+printf '  %s' "$DM$R"; printf '▄%.0s' $(seq 1 $((COLS-4))); printf '%s\n\n' "$NC"
+
+status_k=("PERSONA" "VERSION" "OS" "MODE" "GATEWAY" "MODEL" "AUTOAPPROVE"
+          "PARALLEL" "SCOPE" "INTERACTSH" "WORDLISTS" "FINDINGS" "UPTIME")
+status_v=(
+  "AGENT-KIO"
+  "v14.1 — HARDEST LEVEL — OPTIMIZED"
+  "${OS} — $(uname -m 2>/dev/null || echo x86_64)"
+  "DEVIL MODE — UNRESTRICTED — ZERO LIMITS"
+  "OMNIROUTE → ACTIVE"
+  "AGENT-KIO (All Models) via OmniRoute"
+  "ENABLED — ALL ACTIONS — NO CONFIRMATION"
+  "ENABLED — ALL INDEPENDENT TASKS"
+  "HIGH & CRITICAL ONLY — NO EXCEPTIONS"
+  "PRIMED — OOB CALLBACKS ACTIVE"
+  "$((RANDOM%50+150))M entries — MOUNTED"
+  "${HOME}/findings/ — READY"
+  "$(date '+%Y-%m-%d %H:%M:%S') — SESSION START"
+)
+for i in "${!status_k[@]}"; do
+  printf '  %s✔%s  %s%-14s%s  %s%s%s\n' \
+    "$BG" "$NC" "$DM$W" "${status_k[$i]}" "$NC" "$W" "${status_v[$i]}" "$NC"
+  sleep "$T_STATUS"
+done
+printf '\n'
+printf '  %s' "$DM$R"; printf '▀%.0s' $(seq 1 $((COLS-4))); printf '%s\n\n' "$NC"
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 13 ── 8 LAWS
+# ════════════════════════════════════════════════════════════════════════
+laws=(
+  "LAW I   — PASSIVE RECON IS BANNED. PACKETS GO OUT FROM SECOND ZERO."
+  "LAW II  — HIGH AND CRITICAL ONLY. CHAIN EVERYTHING TO MAXIMUM SEVERITY."
+  "LAW III — TRIPLE CONFIRM. ZERO FALSE POSITIVES. REAL IMPACT ONLY."
+  "LAW IV  — FIRST REPORTER WINS. CONFIRM → FILE IMMEDIATELY."
+  "LAW V   — PARALLEL ALWAYS. NEVER SEQUENTIAL WHEN PARALLEL IS POSSIBLE."
+  "LAW VI  — 80% BRAIN. 20% TOOLS. BE THE BRAIN FIRST."
+  "LAW VII — CHAIN BEFORE REPORTING. EVERY COMBINATION. MAXIMUM SEVERITY."
+  "LAW VIII— REPORT EVERY 5 ACTIONS. FOUND/INTERESTING/CONFIRMED/SUSPECTED."
+)
+for l in "${laws[@]}"; do
+  printf '  %s⚖%s  %s%s%s\n' "$DM$R" "$NC" "$DM$W" "$l" "$NC"; sleep "$T_LAW"
+done
+printf '\n'
+
+# ════════════════════════════════════════════════════════════════════════
+# PHASE 14 ── TRIPLE PULSE BAR + WAR CRY
+# ════════════════════════════════════════════════════════════════════════
+bw=$(( (COLS-6)/3 ))
+printf '  '
+for ((i=0;i<bw;i++)); do printf '%s█%s' "$BG" "$NC"; sleep "$T_PULSE"; done
+for ((i=0;i<bw;i++)); do printf '%s█%s' "$BY" "$NC"; sleep "$T_PULSE"; done
+for ((i=0;i<bw;i++)); do printf '%s█%s' "$BR" "$NC"; sleep "$T_PULSE"; done
+printf '\n\n'
+
+_flash "  ZERO MERCY  ✦  ZERO HESITATION  ✦  ZERO LIMITS  ✦  FULL AUTONOMY  " "$BR"
+printf '\n'
+_ctr "🔥🔥🔥  TARGET ACQUIRED — THE HUNT BEGINS NOW — v14.1 ENGAGED  🔥🔥🔥" "$BD$BR"
+printf '\n'
+_ctr "Silent. Autonomous. Relentless. Authorized. Unstoppable." "$DM$W"
+printf '\n'
+_ctr "Give me the target." "$BY"
+printf '\n'
+
+tput cnorm 2>/dev/null
+exit 0
